@@ -1,31 +1,23 @@
 
--- Blox Note Multi-Hack Script
--- Библиотека: Orion UI. EN ids, RU comments, без TODO
+-- Blox Note Multi-Hack Script (Safe Mobile & Delta Executor Build)
+-- EN ids, RU comments, без TODO
 
 local OrionLib = loadstring(game:HttpGet("https://githubusercontent.com"))()
-local Window = OrionLib:MakeWindow({Name = "Blox Note Hub", HidePremium = false, SaveConfig = true, ConfigFolder = "BloxNoteConfig"})
+local Window = OrionLib:MakeWindow({Name = "Blox Note Hub", HidePremium = false, SaveConfig = false})
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
--- Глобальные переменные настроек софта
+-- Глобальные настройки софта
 _G.ESPEnabled = false
 _G.AimbotEnabled = false
-_G.AimbotFOV = 150
-_G.TracersEnabled = false
+_G.AimbotFOV = 120
 _G.SelfChamsEnabled = false
 
--- FOV Круг для Аимбота
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1.5
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Filled = false
-FOVCircle.Transparency = 0.8
-
--- Функция очистки меток
+-- Функция удаления меток при отключении ESP
 local function clearESP()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Character and p.Character:FindFirstChild("Head") then
@@ -35,7 +27,7 @@ local function clearESP()
     end
 end
 
--- Функция создания ESP
+-- Функция создания красивого текстового ESP над головой
 local function createESP(player, text, color)
     if not _G.ESPEnabled or player == LocalPlayer then return end
     local character = player.Character
@@ -52,7 +44,7 @@ local function createESP(player, text, color)
         billboard = Instance.new("BillboardGui")
         billboard.Name = "RoleESP"
         billboard.AlwaysOnTop = true
-        billboard.Size = UDim2.new(0, 250, 0, 70)
+        billboard.Size = UDim2.new(0, 200, 0, 50)
         billboard.StudsOffset = Vector3.new(0, 3, 0)
         billboard.Parent = head
 
@@ -60,7 +52,7 @@ local function createESP(player, text, color)
         label.Name = "ESPLabel"
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
-        label.TextSize = 16
+        label.TextSize = 14
         label.Font = Enum.Font.SourceSansBold
         label.TextStrokeTransparency = 0
         label.Parent = billboard
@@ -75,41 +67,72 @@ local function createESP(player, text, color)
     end
 end
 
--- Логика определения роли игрока
+-- Точное сканирование ролей в режиме Blox Note
 local function getPlayerRole(p)
     local backpack = p:FindFirstChild("Backpack")
     local char = p.Character
     
-    -- Проверка оружия/предметов в руках (раскрытые роли)
-    local hasKiraItem = (backpack and backpack:FindFirstChild("Death Note")) or (char and char:FindFirstChild("Death Note"))
-    local hasAssistantItem = (backpack and (backpack:FindFirstChild("Second Death Note") or backpack:FindFirstChild("Death Note 2"))) or (char and (char:FindFirstChild("Second Death Note") or char:FindFirstChild("Death Note 2")))
-    
-    if hasKiraItem then return "KIRA" end
-    if hasAssistantItem then return "ASSISTANT" end
-    
-    if p:FindFirstChild("IsL") or p:GetAttribute("Role") == "L" or (backpack and backpack:FindFirstChild("L Notebook")) then
-        return "L"
+    -- Проверка на Киру
+    local isKira = false
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if string.find(string.lower(item.Name), "death") or string.find(string.lower(item.Name), "note") or string.find(string.lower(item.Name), "kira") then
+                if not string.find(string.lower(item.Name), "second") and not string.find(string.lower(item.Name), "2") and not string.find(string.lower(item.Name), "l") then
+                    isKira = true
+                end
+            end
+        end
     end
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") and (string.find(string.lower(item.Name), "death") or string.find(string.lower(item.Name), "note")) then
+                if not string.find(string.lower(item.Name), "second") and not string.find(string.lower(item.Name), "2") and not string.find(string.lower(item.Name), "l") then
+                    isKira = true
+                end
+            end
+        end
+    end
+    if isKira or p:GetAttribute("Role") == "Kira" or p:GetAttribute("Kira") == true then return "KIRA" end
+
+    -- Проверка на Помощника
+    local isAssistant = false
+
+if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if string.find(string.lower(item.Name), "second") or string.find(string.lower(item.Name), "assistant") or string.find(string.lower(item.Name), "note2") then
+                isAssistant = true
+            end
+        end
+    end
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") and (string.find(string.lower(item.Name), "second") or string.find(string.lower(item.Name), "assistant") or string.find(string.lower(item.Name), "note2")) then
+                isAssistant = true
+            end
+        end
+    end
+    if isAssistant or p:GetAttribute("Role") == "Assistant" or p:GetAttribute("SecondKira") == true then return "ASSISTANT" end
+    
+    -- Проверка на L
+    if p:FindFirstChild("IsL") or p:GetAttribute("Role") == "L" or p:GetAttribute("L") == true then return "L" end
+    if backpack and (backpack:FindFirstChild("L Notebook") or backpack:FindFirstChild("Badge")) then return "L" end
+    
     return "INVESTIGATOR"
 end
 
--- Функция Аимбота (только по раскрытым Кире и Помощнику)
-local function getClosestKiraToCursor()
+-- Мобильный Аимбот (плавная доводка камеры на Киру по центру экрана)
+local function getClosestKiraToCenter()
     local closestPlayer = nil
     local shortestDistance = _G.AimbotFOV
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-
-local role = getPlayerRole(p)
-            
-            -- Аимбот жестко триггерится только на Киру или Помощника, доставших блокнот
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local role = getPlayerRole(p)
             if role == "KIRA" or role == "ASSISTANT" then
                 local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
                 if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                    
+                    local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
                     if distance < shortestDistance then
                         closestPlayer = p
                         shortestDistance = distance
@@ -121,11 +144,10 @@ local role = getPlayerRole(p)
     return closestPlayer
 end
 
--- Управление Чамсами на себя
+-- Чамсы (Подсветка персонажа)
 local function updateSelfChams()
     local char = LocalPlayer.Character
     if not char then return end
-    
     local chams = char:FindFirstChild("SelfChams")
     if _G.SelfChamsEnabled then
         if not chams then
@@ -142,85 +164,62 @@ local function updateSelfChams()
     end
 end
 
--- Хранилище линий для Трейсеров
-local LinesCache = {}
-
-local function clearTracers()
-    for _, line in pairs(LinesCache) do
-        line.Visible = false
-        line:Remove()
-    end
-    table.clear(LinesCache)
-end
-
-local function updateTracers()
-    if not _G.TracersEnabled then
-        clearTracers()
-        return
-    end
-
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local line = LinesCache[p]
-            if not line then
-                line = Drawing.new("Line")
-                line.Thickness = 1.5
-                line.Transparency = 0.7
-                LinesCache[p] = line
-            end
-
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local role = getPlayerRole(p)
-                if role == "KIRA" or role == "ASSISTANT" then
-                    line.Color = Color3.fromRGB(255, 0, 0)
-                elseif role == "L" then
-                    line.Color = Color3.fromRGB(0, 100, 255)
-                else
-                    line.Color = Color3.fromRGB(0, 255, 0)
-                end
-
-                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                line.To = Vector2.new(pos.X, pos.Y)
-                line.Visible = true
-            else
-                line.Visible = false
-            end
-        else
-            if LinesCache[p] then
-                LinesCache[p].Visible = false
+-- Логика переключения интерфейса кнопкой MENU
+local function toggleMenu()
+    local orionGui = CoreGui:FindFirstChild("Orion")
+    if orionGui then
+        for _, frame in ipairs(orionGui:GetChildren()) do
+            if frame:IsA("Frame") or frame:IsA("ScreenGui") then
+                frame.Enabled = not frame.Enabled
+            elseif frame:IsA("GuiObject") then
+                frame.Visible = not frame.Visible
             end
         end
     end
 end
 
--- Главный цикл обновлений
+-- Создание плавающей мобильной кнопки MENU
+local function createToggleButton()
+    local existingGui = CoreGui:FindFirstChild("OrionToggleGui")
+    if existingGui then existingGui:Destroy() end
+
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "OrionToggleGui"
+    screenGui.ResetOnSpawn = false
+
+    local button = Instance.new("TextButton", screenGui)
+    button.Size = UDim2.new(0, 60, 0, 60)
+    button.Position = UDim2.new(0, 10, 0, 150)
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    button.Text = "MENU"
+    button.TextColor3 = Color3.fromRGB(255, 0, 0)
+    button.TextSize = 14
+    button.Font = Enum.Font.SourceSansBold
+
+    local uiCorner = Instance.new("UICorner", button)
+    uiCorner.CornerRadius = UDim.new(0, 30)
+
+    local uiStroke = Instance.new("UIStroke", button)
+    uiStroke.Color = Color3.fromRGB(255, 0, 0)
+    uiStroke.Thickness = 2
+
+button.MouseButton1Click:Connect(toggleMenu)
+end
+
+createToggleButton()
+
+-- Основной цикл обновлений аимбота и чамсов
 RunService.RenderStepped:Connect(function()
-    -- Обновление круга FOV
     if _G.AimbotEnabled then
-        FOVCircle.Position = UserInputService:GetMouseLocation()
-        FOVCircle.Radius = _G.AimbotFOV
-        FOVCircle.Visible = true
-        
-        -- Логика наведения аимбота на HumanoidRootPart (Тело)
-        local target = getClosestKiraToCursor()
+        local target = getClosestKiraToCenter()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then -- Удержание ПКМ для доводки
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
-            end
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
         end
-    else
-        FOVCircle.Visible = false
     end
-
-    -- Обновление Трейсеров
-    updateTracers()
-    
-    -- Обновление Чамсов на себя
     updateSelfChams()
 end)
 
--- Цикл проверки ролей и дистанции ESP
+-- Постоянный цикл обновления ролей для ESP
 task.spawn(function()
     while true do
         if _G.ESPEnabled then
@@ -241,24 +240,14 @@ task.spawn(function()
         else
             clearESP()
         end
-        task.wait(0.1)
+        task.wait(0.2)
     end
 end)
 
--- Создание вкладок в интерфейсе Orion
-local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+-- Меню Orion
+local MainTab = Window:MakeTab({Name = "Main", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local FunTab = Window:MakeTab({Name = "Fun", Icon = "rbxassetid://4483345998", PremiumOnly = false})
 
-local FunTab = Window:MakeTab({
-    Name = "Fun",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Наполнение вкладки Main
 MainTab:AddToggle({
     Name = "Enable Role ESP",
     Default = false,
@@ -269,7 +258,7 @@ MainTab:AddToggle({
 })
 
 MainTab:AddToggle({
-    Name = "Enable Anti-Kira Aimbot (Hold RMB)",
+    Name = "Mobile Auto-Aimbot",
     Default = false,
     Callback = function(Value)
         _G.AimbotEnabled = Value
@@ -278,31 +267,18 @@ MainTab:AddToggle({
 
 MainTab:AddSlider({
     Name = "Aimbot FOV Size",
-    Min = 50,
-    Max = 500,
-    Default = 150,
-    Color = Color3.fromRGB(255,255,255),
-    Increment = 1,
-    ValueName = "pixels",
-    Callback = function(Value)
-        _G.AimbotFOV = Value
-    end    
+    Min = 30,
+    Max = 350,
+    Default = 120, Color = Color3.fromRGB(255,255,255),
+Increment = 1,
+ValueName = "pixels",
+Callback = function(Value)
+_G.AimbotFOV = Value
+end
 })
-
--- Наполнение вкладки Fun
 FunTab:AddToggle({
-    Name = "Enable Tracer Lines",
-    Default = false,
-    Callback = function(Value)
-        _G.TracersEnabled = Value
-        if not Value then clearTracers() end
-    end    
-})
-
-FunTab:AddToggle({
-    Name = "Self Chams (Highlight)",
-    Default = false,
-
+Name = "Self Chams (Highlight)",
+Default = false,
 Callback = function(Value)
 _G.SelfChamsEnabled = Value
 end
