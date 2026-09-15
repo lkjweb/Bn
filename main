@@ -1,140 +1,151 @@
-
--- Blox Note Multi-Hack (Custom Mobile Build v2.0 - Verified & Fixed)
+-- Blox Note Hub (Fluent UI Mobile Premium Build v3.5 - Verified Fixed)
 -- EN ids, RU comments, без TODO
+
+local Fluent = loadstring(game:HttpGet("https://github.com"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Blox Note Hub",
+    SubTitle = "by TWKS",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, -- Красивое полупрозрачное размытие заднего фона
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
--- Настройки софта (Исправлена инициализация)
+-- Глобальные настройки софта
 _G.ESPEnabled = false
 _G.AimbotEnabled = false
-_G.AimbotFOV = 200
+_G.AimbotFOV = 250
 _G.SelfChamsEnabled = false
 
--- Тотальная очистка старых элементов перед запуском
+-- Тотальная очистка старых интерфейсов перед запуском
 if CoreGui:FindFirstChild("BloxNoteHubGui") then CoreGui.BloxNoteHubGui:Destroy() end
 if CoreGui:FindFirstChild("OrionToggleGui") then CoreGui.OrionToggleGui:Destroy() end
 
--- Создание кастомного UI
-local mainGui = Instance.new("ScreenGui", CoreGui)
-mainGui.Name = "BloxNoteHubGui"
-mainGui.ResetOnSpawn = false
+-- Создание красивой мобильной кнопки сворачивания/разворачивания интерфейса Fluent
+local function createMobileToggle()
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "OrionToggleGui"
+    screenGui.ResetOnSpawn = false
 
-local mainFrame = Instance.new("Frame", mainGui)
-mainFrame.Size = UDim2.new(0, 320, 0, 240)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Visible = true
+    local button = Instance.new("TextButton", screenGui)
+    button.Size = UDim2.new(0, 50, 0, 50)
+    button.Position = UDim2.new(0, 20, 0, 180)
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    button.Text = "★"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 20
+    button.Font = Enum.Font.SourceSansBold
+    button.BorderSizePixel = 0
 
-local corner = Instance.new("UICorner", mainFrame)
-corner.CornerRadius = UDim.new(0, 10)
+    local uiCorner = Instance.new("UICorner", button)
+    uiCorner.CornerRadius = UDim.new(0, 25)
 
-local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(255, 0, 0)
-stroke.Thickness = 2
-
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "BLOX NOTE HUB"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-title.TextSize = 16
-title.Font = Enum.Font.SourceSansBold
-
-local titleCorner = Instance.new("UICorner", title)
-titleCorner.CornerRadius = UDim.new(0, 10)
-
--- Конструктор кнопок
-local function createToggle(name, yPos, callback)
-    local btn = Instance.new("TextButton", mainFrame)
-    btn.Size = UDim2.new(0, 280, 0, 35)
-    btn.Position = UDim2.new(0, 20, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.Text = name .. ": OFF"
-    btn.TextColor3 = Color3.fromRGB(255, 0, 0)
-    btn.TextSize = 14
-    btn.Font = Enum.Font.SourceSansBold
-    
-    local bCorner = Instance.new("UICorner", btn)
-    bCorner.CornerRadius = UDim.new(0, 6)
-    
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        if state then
-            btn.Text = name .. ": ON"
-            btn.TextColor3 = Color3.fromRGB(0, 255, 0)
-        else
-            btn.Text = name .. ": OFF"
-            btn.TextColor3 = Color3.fromRGB(255, 0, 0)
+    -- Скрипт перетаскивания (Drag) кнопки пальцем по экрану
+    local dragging, dragInput, dragStart, startPos
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = button.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
-        callback(state)
+    end)
+    button.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- Привязка сворачивания Fluent UI к нашей кнопке
+    button.MouseButton1Click:Connect(function()
+        local fluentGui = CoreGui:FindFirstChild("Fluent")
+        if fluentGui then
+            for _, frame in ipairs(fluentGui:GetChildren()) do
+                if frame:IsA("Frame") or frame:IsA("ScreenGui") then
+                    frame.Enabled = not frame.Enabled
+                elseif frame:IsA("GuiObject") then
+                    frame.Visible = not frame.Visible
+                end
+            end
+        end
     end)
 end
 
--- Активация функций в UI
-createToggle("Role ESP", 55, function(v) 
-    _G.ESPEnabled = v 
-    if not v then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.Character and p.Character:FindFirstChild("Head") then
-                local old = p.Character.Head:FindFirstChild("RoleESP")
-                if old then old:Destroy() end
-            end
-        end
-    end
-end)
+createMobileToggle()
 
-createToggle("Mobile Aimbot", 100, function(v) _G.AimbotEnabled = v end)
-createToggle("Self Chams", 145, function(v) _G.SelfChamsEnabled = v end)
-
--- Создание плавающей кнопки MENU
-local toggleGui = Instance.new("ScreenGui", CoreGui)
-toggleGui.Name = "OrionToggleGui"
-toggleGui.ResetOnSpawn = false
-
-local menuBtn = Instance.new("TextButton", toggleGui)
-menuBtn.Size = UDim2.new(0, 60, 0, 60)
-menuBtn.Position = UDim2.new(0, 10, 0, 150)
-menuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-menuBtn.Text = "MENU"
-menuBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-menuBtn.TextSize = 14
-menuBtn.Font = Enum.Font.SourceSansBold
-
-local mCorner = Instance.new("UICorner", menuBtn)
-mCorner.CornerRadius = UDim.new(0, 30)
-
-local mStroke = Instance.new("UIStroke", menuBtn)
-mStroke.Color = Color3.fromRGB(255, 0, 0)
-mStroke.Thickness = 2
-
-menuBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-end)
-
--- Алгоритм сканирования инвентаря на роли
+-- Глубокое сканирование ролей
 local function getPlayerRole(p)
     local backpack = p:FindFirstChild("Backpack")
     local char = p.Character
-    local isKira = false
+    
     if backpack then
         for _, item in ipairs(backpack:GetChildren()) do
-            if string.find(string.lower(item.Name), "death") or string.find(string.lower(item.Name), "note") or string.find(string.lower(item.Name), "kira") then
-                if not string.find(string.lower(item.Name), "second") and not string.find(string.lower(item.Name), "2") and not string.find(string.lower(item.Name), "l") then isKira = true end
+            local name = string.lower(item.Name or "")
+            if string.find(name, "death") or string.find(name, "note") or string.find(name, "kira") then
+
+if string.find(name, "second") or string.find(name, "assistant") or string.find(name, "2") then
+                    return "ASSISTANT"
+                elseif not string.find(name, "l") then
+                    return "KIRA"
+                end
             end
         end
     end
-    if isKira or p:GetAttribute("Role") == "Kira" then return "KIRA" end
-    if p:FindFirstChild("IsL") or p:GetAttribute("Role") == "L" then return "L" end
+    
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = string.lower(item.Name or "")
+                if string.find(name, "death") or string.find(name, "note") or string.find(name, "kira") then
+                    if string.find(name, "second") or string.find(name, "assistant") or string.find(name, "2") then
+                        return "ASSISTANT"
+                    elseif not string.find(name, "l") then
+                        return "KIRA"
+                    end
+                end
+            end
+        end
+    end
+    
+    if p:FindFirstChild("IsL") or (backpack and backpack:FindFirstChild("L Notebook")) then return "L" end
+    
+    local attrRole = p:GetAttribute("Role") or p:GetAttribute("role") or ""
+    attrRole = string.lower(tostring(attrRole))
+    if string.find(attrRole, "kira") then return "KIRA" end
+    if string.find(attrRole, "assistant") or string.find(attrRole, "second") then return "ASSISTANT" end
+    if string.find(attrRole, "l") and #attrRole == 1 then return "L" end
+    
     return "INVESTIGATOR"
 end
 
--- Отрисовка текста ESP
+-- Функция очистки ESP
+local function clearESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("Head") then
+            local old = p.Character.Head:FindFirstChild("RoleESP")
+            if old then old:Destroy() end
+        end
+    end
+end
+
+-- Отрисовка текста ESP над головами
 local function createESPFrame(player, text, color)
     if not _G.ESPEnabled or player == LocalPlayer then return end
     local char = player.Character if not char then return end
@@ -167,20 +178,22 @@ local function createESPFrame(player, text, color)
     end
 end
 
--- Бесконечный цикл проверки кадров (Аимбот и Чамсы)
+-- Рендер-цикл для Аимбота и Чамсов
 RunService.RenderStepped:Connect(function()
-    if _G.AimbotEnabled then
+    if _G.AimbotEnabled and Camera.ViewportSize.X > 0 and Camera.ViewportSize.Y > 0 then
         local closestPlayer = nil
         local shortestDistance = _G.AimbotFOV
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                if getPlayerRole(p) == "KIRA" then
+                local role = getPlayerRole(p)
+                if role == "KIRA" or role == "ASSISTANT" then
                     local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
                     if onScreen then
                         local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
-                        if distance < shortestDistance then 
+
+if distance < shortestDistance then 
                             closestPlayer = p 
                             shortestDistance = distance 
                         end
@@ -212,7 +225,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Цикл обновлений ESP
+-- Потоковый цикл обновлений ESP
 task.spawn(function()
     while true do
         if _G.ESPEnabled then
@@ -220,11 +233,55 @@ task.spawn(function()
                 if p ~= LocalPlayer then
                     local role = getPlayerRole(p)
                     if role == "KIRA" then createESPFrame(p, "[ KIRA ]", Color3.fromRGB(255, 0, 0))
+                    elseif role == "ASSISTANT" then createESPFrame(p, "[ KIRA ASSISTANT ]", Color3.fromRGB(255, 0, 0))
                     elseif role == "L" then createESPFrame(p, "[ L ]", Color3.fromRGB(0, 100, 255))
                     else createESPFrame(p, "[ INVESTIGATOR ]", Color3.fromRGB(0, 255, 0)) end
                 end
             end
         end
-        task.wait(0.2)
+        task.wait(0.3)
     end
 end)
+
+-- Наполнение Fluent интерфейса вкладками и элементами
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "box" }),
+    Fun = Window:AddTab({ Title = "Fun", Icon = "smile" })
+}
+
+-- Элементы во вкладке Main
+Tabs.Main:AddToggle("RoleESPToggle", {
+    Title = "Enable Role ESP", Default = false,
+Callback = function(Value)
+_G.ESPEnabled = Value
+if not Value then clearESP() end
+end
+})
+Tabs.Main:AddToggle("AimbotToggle", {
+Title = "Mobile Auto-Aimbot (Anti-Kira)",
+Default = false,
+Callback = function(Value)
+_G.AimbotEnabled = Value
+end
+})
+Tabs.Main:AddSlider("AimbotFOVSlider", {
+Title = "Aimbot FOV Size",
+Description = "Радиус захвата целей аимботом",
+Min = 50,
+Max = 400,
+Default = 250,
+Increment = 5,
+Callback = function(Value)
+_G.AimbotFOV = Value
+end
+})
+-- Элементы во вкладке Fun
+Tabs.Fun:AddToggle("ChamsToggle", {
+Title = "Self Chams (Highlight)",
+Default = false,
+Callback = function(Value)
+_G.SelfChamsEnabled = Value
+end
+})
+-- Выбор первой вкладки при старте софта
+Window:SelectTab(1)
