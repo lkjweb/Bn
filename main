@@ -1,18 +1,6 @@
 
--- Blox Note Hub (Rayfield UI Mobile Premium Build v5.5 - Absolute Final Build)
+-- Blox Note Hub (Standalone Mobile Premium Build v6.0 - No Libraries)
 -- EN ids, RU comments, без TODO
-
--- Официальный импорт мобильного Rayfield
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Blox Note Hub",
-   LoadingTitle = "Loading Script Suite...",
-   LoadingSubtitle = "by TWKS",
-   Theme = "Default",
-   ConfigurationSaving = { Enabled = false },
-   KeySystem = false
-})
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -27,16 +15,143 @@ _G.AimbotEnabled = false
 _G.AimbotFOV = 250
 _G.SelfChamsEnabled = false
 
--- Тотальное удаление остатков старых кастомных UI перед запуском
+-- Тотальное удаление старых остатков UI перед запуском
 if CoreGui:FindFirstChild("BloxNoteHubGui") then CoreGui.BloxNoteHubGui:Destroy() end
 if CoreGui:FindFirstChild("OrionToggleGui") then CoreGui.OrionToggleGui:Destroy() end
 
--- Улучшенный алгоритм детекции ролей для Blox Note
+-- Создание главного UI (Кастомная темно-неоновая премиум-панель)
+local mainGui = Instance.new("ScreenGui", CoreGui)
+mainGui.Name = "BloxNoteHubGui"
+mainGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame", mainGui)
+mainFrame.Size = UDim2.new(0, 320, 0, 240)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = true
+
+local corner = Instance.new("UICorner", mainFrame)
+corner.CornerRadius = UDim.new(0, 12)
+
+-- Заголовок меню
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 45)
+title.Text = "BLOX NOTE HUB v6.0"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+title.TextSize = 15
+title.Font = Enum.Font.SourceSansBold
+title.BorderSizePixel = 0
+
+local titleCorner = Instance.new("UICorner", title)
+titleCorner.CornerRadius = UDim.new(0, 12)
+
+-- Линия разделения под заголовком
+local line = Instance.new("Frame", mainFrame)
+line.Size = UDim2.new(1, 0, 0, 2)
+line.Position = UDim2.new(0, 0, 0, 43)
+line.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+line.BorderSizePixel = 0
+
+-- Конструктор красивых переключателей (Toggle)
+local function createToggle(name, yPos, callback)
+    local btn = Instance.new("TextButton", mainFrame)
+    btn.Size = UDim2.new(0, 280, 0, 38)
+    btn.Position = UDim2.new(0, 20, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btn.Text = name .. " : OFF"
+    btn.TextColor3 = Color3.fromRGB(240, 80, 80)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.SourceSansBold
+    btn.BorderSizePixel = 0
+    
+    local bCorner = Instance.new("UICorner", btn)
+    bCorner.CornerRadius = UDim.new(0, 8)
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            btn.Text = name .. " : ON"
+            btn.TextColor3 = Color3.fromRGB(80, 240, 80)
+            btn.BackgroundColor3 = Color3.fromRGB(40, 50, 40)
+        else
+            btn.Text = name .. " : OFF"
+            btn.TextColor3 = Color3.fromRGB(240, 80, 80)
+            btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        end
+        callback(state)
+    end)
+end
+
+-- Активация функций в UI
+createToggle("Enable Role ESP", 60, function(v) 
+    _G.ESPEnabled = v 
+    if not v then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("Head") then
+                local old = p.Character.Head:FindFirstChild("RoleESP")
+                if old then old:Destroy() end
+            end
+        end
+    end
+end)
+
+createToggle("Mobile Anti-Kira Aimbot", 115, function(v) _G.AimbotEnabled = v end)
+createToggle("Self Chams", 170, function(v) _G.SelfChamsEnabled = v end)
+
+-- Создание плавающей и перетаскиваемой кнопки MENU
+local toggleGui = Instance.new("ScreenGui", CoreGui)
+toggleGui.Name = "OrionToggleGui"
+toggleGui.ResetOnSpawn = false
+
+local menuBtn = Instance.new("TextButton", toggleGui)
+menuBtn.Size = UDim2.new(0, 55, 0, 55)
+menuBtn.Position = UDim2.new(0, 20, 0, 180)
+menuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+menuBtn.Text = "★"
+menuBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+menuBtn.TextSize = 22
+menuBtn.BorderSizePixel = 0
+
+local mCorner = Instance.new("UICorner", menuBtn)
+mCorner.CornerRadius = UDim.new(0, 28)
+
+-- Скрипт плавного перетаскивания (Drag) кнопки MENU пальцем для Delta
+local dragging, dragInput, dragStart, startPos
+menuBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = menuBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+menuBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        menuBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+menuBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Алгоритм детекции ролей (Инвентарь, Персонаж, Атрибуты и скрытые PlayerGui)
 local function getPlayerRole(p)
     if not p then return "INVESTIGATOR" end
-    local backpack = p:FindFirstChild("Backpack")
-    local char = p.Character
-    local playerGui = p:FindFirstChild("PlayerGui")
+    local bp = p:FindFirstChild("Backpack")
+    local ch = p.Character
+    local pg = p:FindFirstChild("PlayerGui")
     
     local isKira = false
     local isAssistant = false
@@ -53,18 +168,11 @@ local function getPlayerRole(p)
         end
     end
 
-    if backpack then 
-        for _, item in ipairs(backpack:GetChildren()) do checkItem(item) end 
-    end
-    if char then 
-        for _, item in ipairs(char:GetChildren()) do 
-            if item:IsA("Tool") then checkItem(item) end 
-        end 
-    end
+    if bp then for _, item in ipairs(bp:GetChildren()) do checkItem(item) end end
+    if ch then for _, item in ipairs(ch:GetChildren()) do if item:IsA("Tool") then checkItem(item) end end end
     
-    -- Сканирование локальных GUI элементов на предмет утечки ролей в текст
-    if playerGui then
-        for _, gui in ipairs(playerGui:GetDescendants()) do
+    if pg then
+        for _, gui in ipairs(pg:GetDescendants()) do
             if gui:IsA("TextLabel") or gui:IsA("StringValue") then
                 local txt = string.lower(gui.Text or gui.Value or "")
                 if string.find(txt, "kira") or string.find(txt, "кира") then isKira = true end
@@ -75,22 +183,12 @@ local function getPlayerRole(p)
 
     if isAssistant then return "ASSISTANT" end
     if isKira or p:GetAttribute("Role") == "Kira" or p:GetAttribute("Kira") == true then return "KIRA" end
-    if p:FindFirstChild("IsL") or p:GetAttribute("Role") == "L" or (backpack and backpack:FindFirstChild("L Notebook")) then return "L" end
+    if p:FindFirstChild("IsL") or p:GetAttribute("Role") == "L" or (bp and bp:FindFirstChild("L Notebook")) then return "L" end
     
     return "INVESTIGATOR"
 end
 
--- Функция полной очистки ESP
-local function clearESP()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p.Character and p.Character:FindFirstChild("Head") then
-            local old = p.Character.Head:FindFirstChild("RoleESP")
-            if old then old:Destroy() end
-        end
-    end
-end
-
--- Функция отрисовки текста ESP
+-- Отрисовка текста ESP
 local function createESPFrame(player, text, color)
     if not _G.ESPEnabled or player == LocalPlayer then return end
     local char = player.Character if not char then return end
@@ -101,8 +199,7 @@ local function createESPFrame(player, text, color)
     local lbl
     if not bb then
         bb = Instance.new("BillboardGui", head)
-
-bb.Name = "RoleESP"
+        bb.Name = "RoleESP"
         bb.AlwaysOnTop = true
         bb.Size = UDim2.new(0, 200, 0, 50)
         bb.StudsOffset = Vector3.new(0, 3, 0)
@@ -112,7 +209,8 @@ bb.Name = "RoleESP"
         lbl.BackgroundTransparency = 1
         lbl.TextSize = 14
         lbl.Font = Enum.Font.SourceSansBold
-        lbl.TextStrokeTransparency = 0
+
+lbl.TextStrokeTransparency = 0
     else
         lbl = bb:FindFirstChild("ESPLabel")
     end
@@ -124,7 +222,7 @@ bb.Name = "RoleESP"
     end
 end
 
--- Бесконечный рендер-цикл для Мобильного Аимбота и Чамсов
+-- Бесконечный цикл кадров (Аимбот и Чамсов)
 RunService.RenderStepped:Connect(function()
     if _G.AimbotEnabled and Camera.ViewportSize.X > 0 and Camera.ViewportSize.Y > 0 then
         local closestPlayer = nil
@@ -138,10 +236,7 @@ RunService.RenderStepped:Connect(function()
                     local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
                     if onScreen then
                         local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
-                        if distance < shortestDistance then 
-                            closestPlayer = p 
-                            shortestDistance = distance 
-                        end
+                        if distance < shortestDistance then closestPlayer = p shortestDistance = distance end
                     end
                 end
             end
@@ -151,7 +246,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- Логика Чамсов
+    -- Логика Чамсов на себя
     local char = LocalPlayer.Character
     if char then
         local chams = char:FindFirstChild("SelfChams")
@@ -160,76 +255,28 @@ RunService.RenderStepped:Connect(function()
                 chams = Instance.new("Highlight", char)
                 chams.Name = "SelfChams"
                 chams.FillColor = Color3.fromRGB(0, 255, 255)
-                chams.FillTransparency = 0.5
-                chams.OutlineColor = Color3.fromRGB(255, 255, 255)
-                chams.OutlineTransparency = 0
-            end
-        else
-            if chams then chams:Destroy() end
-        end
-    end
+                chams.FillTransparency = 0.5 chams.OutlineColor = Color3.fromRGB(255, 255, 255)
+chams.OutlineTransparency = 0
+end
+else
+if chams then chams:Destroy() end
+end
+end
 end)
-
 -- Потоковый цикл обновлений ESP
 task.spawn(function()
-    while true do
-        if _G.ESPEnabled then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then
-                    local role = getPlayerRole(p)
-                    if role == "KIRA" then 
-                        createESPFrame(p, "[ KIRA ]", Color3.fromRGB(255, 0, 0))
-                    elseif role == "ASSISTANT" then 
-                        createESPFrame(p, "[ KIRA ASSISTANT ]", Color3.fromRGB(255, 0, 0))
-                    elseif role == "L" then 
-                        createESPFrame(p, "[ L ]", Color3.fromRGB(0, 100, 255))
-                    else 
-                        createESPFrame(p, "[ INVESTIGATOR ]", Color3.fromRGB(0, 255, 0)) 
-                    end
-                end
-            end
-        end
-        task.wait(0.3)
-    end
+while true do
+if _G.ESPEnabled then
+for _, p in ipairs(Players:GetPlayers()) do
+if p ~= LocalPlayer then
+local role = getPlayerRole(p)
+if role == "KIRA" then createESPFrame(p, "[ KIRA ]", Color3.fromRGB(255, 0, 0))
+elseif role == "ASSISTANT" then createESPFrame(p, "[ KIRA ASSISTANT ]", Color3.fromRGB(255, 0, 0))
+elseif role == "L" then createESPFrame(p, "[ L ]", Color3.fromRGB(0, 100, 255))
+else createESPFrame(p, "[ INVESTIGATOR ]", Color3.fromRGB(0, 255, 0)) end
+end
+end
+end
+task.wait(0.3)
+end
 end)
-
--- Создание структуры меню в Rayfield UI через официальные методы
-local MainTab = Window:CreateTab("Main Settings", nil)
-local FunTab = Window:CreateTab("Fun & Visuals", nil)
-
--- Наполнение вкладки Main
-MainTab:CreateToggle({
-   Name = "Enable Role ESP (Names & Meters)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.ESPEnabled = Value
-      if not Value then clearESP() end
-   end,
-})
-
-MainTab:CreateToggle({
-   Name = "Mobile Auto-Aimbot (Anti-Kira)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.AimbotEnabled = Value
-   end,
-})
-
-MainTab:CreateSlider({
-   Name = "Aimbot FOV Size",
-   Min = 50,
-   Max = 400,
-   CurrentValue = 250,
-   Callback = function(Value)
-      _G.AimbotFOV = Value
-   end,
-})
-
--- Наполнение вкладки Fun
-FunTab:CreateToggle({
-   Name = "Self Chams (Highlight Body)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.SelfChamsEnabled = Value
-   end,
-})
